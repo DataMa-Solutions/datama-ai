@@ -1,19 +1,21 @@
 """Agent orchestration: detect source, fetch data, build conf + dataset via LLM, validate."""
 
 import json
-from pathlib import Path
+from urllib.request import urlopen
 
 from agent.llm import call_llm, parse_json_from_response
 from agent.validator import validate_compare_payload
+from light_runner.urls import INSTRUCTION_URL
 from sources import detect_source, fetch_data
 
 
 def _load_prompt() -> str:
-    """Load the Light Compare instructions prompt from prompts/."""
-    path = Path(__file__).resolve().parent.parent / "prompts" / "light_compare_instructions.md"
-    if not path.is_file():
+    """Load the agent system prompt from INSTRUCTION_URL."""
+    try:
+        with urlopen(INSTRUCTION_URL, timeout=10) as resp:
+            return resp.read().decode("utf-8")
+    except Exception:
         return ""
-    return path.read_text(encoding="utf-8")
 
 
 def run(message: str, history: list[dict] | None = None) -> dict:
@@ -73,7 +75,7 @@ def run(message: str, history: list[dict] | None = None) -> dict:
     instructions = _load_prompt()
     if not instructions:
         return {
-            "message": "Agent misconfiguration: prompts/light_compare_instructions.md not found.",
+            "message": f"Agent misconfiguration: could not load instructions from {INSTRUCTION_URL}.",
             "payload": None,
             "error": "Missing prompt file",
         }
@@ -116,7 +118,8 @@ Build a JSON object with keys: dimensions, metrics, steps, meta, inputs, configu
     validation_errors = validate_compare_payload(payload)
     if validation_errors:
         return {
-            "message": "The generated configuration has issues:\n- " + "\n- ".join(validation_errors),
+            "message": "The generated configuration has issues:\n- "
+            + "\n- ".join(validation_errors),
             "payload": None,
             "error": "; ".join(validation_errors),
         }

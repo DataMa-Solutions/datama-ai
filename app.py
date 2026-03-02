@@ -10,7 +10,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from agent import run as run_agent
-from light_runner.iframe_html import build_embed_html, get_runner_url
+from light_runner.iframe_html import build_embed_html
 
 st.set_page_config(page_title="DataMaLight Chat", layout="centered")
 
@@ -26,8 +26,7 @@ for msg in st.session_state.messages:
             dataset = msg["payload"].get("dataset", [])
             conf = msg["payload"].get("conf", {})
             if dataset and conf:
-                runner_url = get_runner_url()
-                html = build_embed_html(runner_url, dataset, conf)
+                html = build_embed_html(dataset, conf)
                 components.html(html, height=440, scrolling=False)
 
 if prompt := st.chat_input("Paste a Google Sheet URL (or message)..."):

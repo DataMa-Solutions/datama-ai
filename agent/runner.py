@@ -5,6 +5,7 @@ from urllib.request import urlopen
 
 from agent.llm import call_llm, parse_json_from_response
 from agent.validator import validate_compare_payload
+from light_runner.meta_builder import get_meta_from_dataset, meta_to_csv
 from light_runner.urls import INSTRUCTION_URL
 from sources import detect_source, fetch_data
 
@@ -71,7 +72,10 @@ def run(message: str, history: list[dict] | None = None) -> dict:
             "error": None,
         }
 
-    # 3) Load prompt and build user message for LLM
+    # 3) Build meta from dataset (same structure as DataMaLight); send meta to LLM instead of raw data
+    meta = get_meta_from_dataset(raw_rows, order="desc")
+
+    # 4) Load prompt and build user message for LLM
     instructions = _load_prompt()
     if not instructions:
         return {
@@ -80,19 +84,20 @@ def run(message: str, history: list[dict] | None = None) -> dict:
             "error": "Missing prompt file",
         }
 
-    data_preview = json.dumps(raw_rows[:80], indent=2)
-    if len(raw_rows) > 80:
-        data_preview += f"\n... and {len(raw_rows) - 80} more rows."
+    meta_csv = meta_to_csv(meta, max_unique_per_col=50)
 
     user_content = f"""The user provided this data source and message:
 Message: {message}
 
-Raw data (sample rows). Use this to infer column names, dimensions (categorical/date columns), metrics (numeric columns), and build meta (type and unique values per column). Do NOT include a "dataset" key in your output; we already have the data.
-{data_preview}
+Metadata (meta) for the dataset is below in a CSV block. One row per column: column, type, format, n_unique, unique_values (pipe-separated, truncated). Use this to choose dimensions (categorical/date columns), metrics (numeric columns), and build the Compare config. Do NOT include "dataset" or "meta" in your output; we already have the data and meta.
 
-Build a JSON object with keys: dimensions, metrics, steps, meta, inputs, configuration, smart. Output only this single JSON object (no markdown, no explanation). Ensure inputs.context is one of dimensions; inputs.start and inputs.end are arrays (indices into meta[context].unique if relative, or values). Steps must reference only metric names from metrics."""
+```csv
+{meta_csv}
+```
 
-    # 4) Call LLM
+Build a JSON object with keys: dimensions, metrics, steps, inputs, configuration, smart. Output only this single JSON object (no markdown, no explanation). Ensure inputs.context is one of dimensions; inputs.start and inputs.end are arrays (indices into meta[context].unique if relative, or values). Steps must reference only metric names from metrics."""
+
+    # 5) Call LLM
     try:
         response_text = call_llm(instructions, user_content)
     except Exception as e:
@@ -102,7 +107,7 @@ Build a JSON object with keys: dimensions, metrics, steps, meta, inputs, configu
             "error": str(e),
         }
 
-    # 5) Parse JSON
+    # 6) Parse JSON
     payload = parse_json_from_response(response_text)
     if not payload:
         return {
@@ -111,10 +116,19 @@ Build a JSON object with keys: dimensions, metrics, steps, meta, inputs, configu
             "error": "JSON parse failed",
         }
 
-    # 6) Attach our fetched dataset (we did not ask LLM to return it)
-    payload["dataset"] = raw_rows
+    # 7) Ensure required fields / defaults the model might omit
+    # - metricForClustering: default to last metric if missing
+    metrics = payload.get("metrics") or []
+    inputs = payload.get("inputs") or {}
+    if metrics and "metricForClustering" not in inputs:
+        inputs["metricForClustering"] = metrics[-1]
+        payload["inputs"] = inputs
 
-    # 7) Validate
+    # 8) Attach our fetched dataset and meta (LLM did not receive raw data, only meta)
+    payload["dataset"] = raw_rows
+    payload["meta"] = meta
+
+    # 9) Validate
     validation_errors = validate_compare_payload(payload)
     if validation_errors:
         return {
@@ -124,13 +138,13 @@ Build a JSON object with keys: dimensions, metrics, steps, meta, inputs, configu
             "error": "; ".join(validation_errors),
         }
 
-    # 8) Normalize for Light: ensure conf has all keys Light expects
+    # 10) Normalize for Light: ensure conf has all keys Light expects (meta already built from dataset)
     dataset = payload.get("dataset", [])
     conf = {
         "dimensions": payload.get("dimensions", []),
         "metrics": payload.get("metrics", []),
         "steps": payload.get("steps", []),
-        "meta": payload.get("meta", {}),
+        "meta": meta,
         "inputs": payload.get("inputs", {}),
         "configuration": payload.get("configuration", {}),
         "smart": payload.get("smart", {"allow": False}),

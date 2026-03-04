@@ -75,8 +75,8 @@ def validate_compare_payload(payload: dict) -> list[str]:
             all_cols.update(row.keys())
         if dimensions is not None and metrics is not None:
             expected = set(dimensions) | set(metrics)
-            if all_cols and not expected.issuperset(all_cols):
-                errors.append("Dataset columns must be a subset of dimensions + metrics.")
+            # Allow extra columns in the dataset that are not referenced in dimensions/metrics.
+            # We only require that all declared dimensions/metrics actually exist in the dataset.
             if all_cols and not all_cols.issuperset(expected):
                 errors.append("Dataset must contain all dimensions and metrics.")
 

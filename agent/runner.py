@@ -1,6 +1,6 @@
 """Agent orchestration: detect source, fetch data, build conf + dataset via LLM, validate."""
 
-import json
+from datetime import date
 from urllib.request import urlopen
 
 from agent.llm import call_llm, parse_json_from_response
@@ -86,14 +86,20 @@ def run(message: str, history: list[dict] | None = None) -> dict:
 
     meta_csv = meta_to_csv(meta, max_unique_per_col=50)
 
-    user_content = f"""The user provided this data source and message:
-Message: {message}
+    today_str = date.today().strftime("%Y-%m-%d")
 
-Metadata (meta) for the dataset is below in a CSV block. One row per column: column, type, format, n_unique, unique_values (pipe-separated, truncated). Use this to choose dimensions (categorical/date columns), metrics (numeric columns), and build the Compare config. Do NOT include "dataset" or "meta" in your output; we already have the data and meta.
+    user_content = f"""
+    Today is {today_str}.
 
-```csv
-{meta_csv}
-```
+    The user provided this data source and message:
+
+    Message: {message}
+
+    Metadata (meta) for the dataset is below in a CSV block. One row per column: column, type, format, n_unique, unique_values (pipe-separated, truncated). Use this to choose dimensions (categorical/date columns), metrics (numeric columns), and build the Compare config. Do NOT include "dataset" or "meta" in your output; we already have the data and meta.
+
+    ```csv
+    {meta_csv}
+    ```
 
 Build a JSON object with keys: dimensions, metrics, steps, inputs, configuration, smart. Output only this single JSON object (no markdown, no explanation). Ensure inputs.context is one of dimensions; inputs.start and inputs.end are arrays (indices into meta[context].unique if relative, or values). Steps must reference only metric names from metrics."""
 
@@ -118,15 +124,14 @@ Build a JSON object with keys: dimensions, metrics, steps, inputs, configuration
 
     # 7) Ensure required fields / defaults the model might omit
     # - metricForClustering: default to last metric if missing
-    metrics = payload.get("metrics") or []
-    inputs = payload.get("inputs") or {}
+    metrics = payload.get("metrics")
+    inputs = payload.get("inputs")
     if metrics and "metricForClustering" not in inputs:
         inputs["metricForClustering"] = metrics[-1]
         payload["inputs"] = inputs
 
     # 8) Attach our fetched dataset and meta (LLM did not receive raw data, only meta)
     payload["dataset"] = raw_rows
-    payload["meta"] = meta
 
     # 9) Validate
     validation_errors = validate_compare_payload(payload)
@@ -144,14 +149,12 @@ Build a JSON object with keys: dimensions, metrics, steps, inputs, configuration
         "dimensions": payload.get("dimensions", []),
         "metrics": payload.get("metrics", []),
         "steps": payload.get("steps", []),
-        "meta": meta,
         "inputs": payload.get("inputs", {}),
         "configuration": payload.get("configuration", {}),
-        "smart": payload.get("smart", {"allow": False}),
     }
 
     return {
-        "message": "Here is your DataMaLight Compare view. The configuration and dataset were generated from your sheet.",
+        "message": payload.get("message"),
         "payload": {"dataset": dataset, "conf": conf},
         "error": None,
     }

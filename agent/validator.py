@@ -14,11 +14,12 @@ def validate_compare_payload(payload: dict) -> list[str]:
     dimensions = payload.get("dimensions")
     metrics = payload.get("metrics")
     steps = payload.get("steps")
-    meta = payload.get("meta")
     inputs = payload.get("inputs")
     dataset = payload.get("dataset")
 
-    if not isinstance(dimensions, list) or not all(isinstance(d, str) for d in dimensions):
+    if not isinstance(dimensions, list) or not all(
+        isinstance(d, str) for d in dimensions
+    ):
         errors.append("'dimensions' must be an array of strings.")
     if not isinstance(metrics, list) or not all(isinstance(m, str) for m in metrics):
         errors.append("'metrics' must be an array of strings.")
@@ -30,21 +31,11 @@ def validate_compare_payload(payload: dict) -> list[str]:
                 errors.append(f"'steps[{i}]' must be an object.")
             else:
                 if "numerator" not in s or "denominator" not in s:
-                    errors.append(f"'steps[{i}]' must have 'numerator' and 'denominator'.")
+                    errors.append(
+                        f"'steps[{i}]' must have 'numerator' and 'denominator'."
+                    )
                 if "name" not in s:
                     errors.append(f"'steps[{i}]' must have 'name'.")
-
-    if not isinstance(meta, dict):
-        errors.append("'meta' must be an object keyed by column name.")
-    else:
-        for col, val in meta.items():
-            if not isinstance(val, dict):
-                errors.append(f"'meta.{col}' must be an object.")
-            else:
-                if "type" not in val:
-                    errors.append(f"'meta.{col}' must have 'type'.")
-                if "unique" not in val or not isinstance(val["unique"], list):
-                    errors.append(f"'meta.{col}' must have 'unique' (array).")
 
     if not isinstance(inputs, dict):
         errors.append("'inputs' must be an object.")

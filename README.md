@@ -1,8 +1,8 @@
-## Datama AI Agent
+## Datama AI
 
-Technical documentation for the `ai-agent` project.
+Technical documentation for the `datama-ai` project.
 
-This project is a small **Streamlit** application that runs a Datama AI agent locally. It integrates with **OpenAI** and **Datama Light** to build and execute analytical workflows based on user data.
+This project is a small **Streamlit** application that runs a Datama AI locally. It integrates with **OpenAI** and **Datama Light** to build and execute analytical workflows based on user data.
 
 The main entrypoint is `app.py`. The `run.sh` script is a thin wrapper that manages the Python virtual environment and starts Streamlit.
 
@@ -28,11 +28,7 @@ The main entrypoint is `app.py`. The `run.sh` script is a thin wrapper that mana
 
 ## Installation
 
-From the `ai-agent` directory:
-
-```bash
-cd /home/yahz/datama/ai-agent
-```
+From the `datama-ai` directory:
 
 Create and activate a virtual environment (optional if you rely on `run.sh`, which will create `.venv` automatically if missing):
 

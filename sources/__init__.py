@@ -24,9 +24,9 @@ def detect_source(url_or_message: str) -> str | None:
     return None
 
 
-def fetch_data(source_kind: str, url_or_id: str, **kwargs) -> list[dict]:
+def fetch_data(source_kind: str, url_or_id: str) -> list[dict]:
     """Fetch raw rows from the given source. Returns list of dicts (column name -> value)."""
     for provider in _REGISTRY:
         if provider.kind == source_kind:
-            return provider.fetch(url_or_id, **kwargs)
+            return provider.fetch(url_or_id)
     raise ValueError(f"Unknown source kind: {source_kind}")

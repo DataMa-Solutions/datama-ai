@@ -16,6 +16,13 @@ def _extract_sheet_id(url_or_id: str) -> str | None:
     return match.group(1) if match else None
 
 
+def _extract_gid(url_or_id: str) -> int:
+    """Extract sheet gid from URL fragment or query (#gid=0, &gid=0, ?gid=0). Default 0."""
+    url_or_id = (url_or_id or "").strip()
+    match = re.search(r"[?#&]gid=(\d+)", url_or_id)
+    return int(match.group(1)) if match else 0
+
+
 def _fetch_public_sheet_csv(sheet_id: str, gid: int = 0) -> list[dict]:
     """Fetch public sheet as CSV (no auth). Sheet must be shared as 'Anyone with the link can view'."""
     url = (
@@ -43,16 +50,13 @@ class GoogleSheetProvider(BaseSourceProvider):
             return self.kind
         return None
 
-    def fetch(self, url_or_id: str, gid: int = 0, **kwargs) -> list[dict]:
+    def fetch(self, url_or_id: str) -> list[dict]:
         sheet_id = _extract_sheet_id(url_or_id)
         if not sheet_id:
             raise ValueError(
                 "Could not extract Google Sheet ID from: " + str(url_or_id)[:80]
             )
-
-        creds = _get_credentials()
-        if creds is not None:
-            return _fetch_via_gspread(sheet_id, creds)
+        gid = _extract_gid(url_or_id)
         return _fetch_public_sheet_csv(sheet_id, gid)
 
 
@@ -91,13 +95,3 @@ def _get_credentials() -> "object | None":
             ],
         )
     return None
-
-
-def _fetch_via_gspread(sheet_id: str, credentials) -> list[dict]:
-    import gspread
-
-    client = gspread.authorize(credentials)
-    spreadsheet = client.open_by_key(sheet_id)
-    sheet = spreadsheet.sheet1
-    rows = sheet.get_all_records()
-    return [dict(r) for r in rows]

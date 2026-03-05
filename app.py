@@ -27,7 +27,7 @@ for msg in st.session_state.messages:
             conf = msg["payload"].get("conf", {})
             if dataset and conf:
                 html = build_embed_html(dataset, conf)
-                components.html(html, height=440, scrolling=False)
+                components.html(html, height=550, scrolling=False)
 
 if prompt := st.chat_input("Paste a Google Sheet URL (or message)..."):
     st.session_state.messages.append({"role": "user", "content": prompt})

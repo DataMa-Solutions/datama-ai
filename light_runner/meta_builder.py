@@ -19,7 +19,11 @@ GUESS_TYPE_SAMPLE = 100
 # Date format detection: try in order; first match wins (mirrors DataMaDate.handledFormat)
 DATE_PATTERNS = [
     (re.compile(r"^\d{4}-\d{2}-\d{2}$"), "YYYY-MM-DD"),
-    (re.compile(r"^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{1,2}:\d{1,2}$"), "YYYY-MM-DD HH:mm:ss"),
+    (
+        re.compile(r"^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{1,2}:\d{1,2}$"),
+        "YYYY-MM-DD HH:mm:ss",
+    ),
+    (re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$"), "M/D/YYYY"),
     (re.compile(r"^\d{2}-\d{2}-\d{4}$"), "DD-MM-YYYY"),
     (re.compile(r"^\d{2}/\d{2}/\d{4}$"), "DD/MM/YYYY"),
     (re.compile(r"^\d{4}/\d{2}/\d{2}$"), "YYYY/MM/DD"),
@@ -46,7 +50,10 @@ def _infer_type(sample: list[Any]) -> str:
         return "string"
 
     # Boolean
-    if all(v is True or v is False or str(v).lower() in ("true", "false", "1", "0") for v in usable):
+    if all(
+        v is True or v is False or str(v).lower() in ("true", "false", "1", "0")
+        for v in usable
+    ):
         return "boolean"
 
     # Numeric
@@ -64,7 +71,8 @@ def _infer_type(sample: list[Any]) -> str:
 
     if all(is_numeric(v) for v in usable):
         if any(
-            isinstance(v, float) or (isinstance(v, str) and "." in str(v).replace(",", "."))
+            isinstance(v, float)
+            or (isinstance(v, str) and "." in str(v).replace(",", "."))
             for v in usable
         ):
             return "float"
@@ -134,7 +142,13 @@ def _sort_unique(unique: list[Any], col_type: str) -> list[Any]:
             return sorted(unique, key=str)
     if col_type in ("int", "float"):
         try:
-            return sorted(unique, key=lambda x: (x is None, x if isinstance(x, (int, float)) else float("-inf")))
+            return sorted(
+                unique,
+                key=lambda x: (
+                    x is None,
+                    x if isinstance(x, (int, float)) else float("-inf"),
+                ),
+            )
         except Exception:
             return sorted(unique, key=str)
     return sorted(unique, key=lambda x: (x is None, str(x)))
@@ -164,7 +178,11 @@ def get_meta_from_dataset(
     for col in columns:
         values = [row.get(col) for row in source]
         unique_raw = list(dict.fromkeys(v for v in values if v is not None and v != ""))
-        sample = unique_raw[:GUESS_TYPE_SAMPLE] if len(unique_raw) > GUESS_TYPE_SAMPLE else unique_raw
+        sample = (
+            unique_raw[:GUESS_TYPE_SAMPLE]
+            if len(unique_raw) > GUESS_TYPE_SAMPLE
+            else unique_raw
+        )
         col_type = _infer_type(sample)
 
         unique = _parse_unique_for_type(unique_raw, col_type)
@@ -179,12 +197,18 @@ def get_meta_from_dataset(
             "unique": unique,
         }
         if col_type == "date" and unique:
-            formats = [_detect_date_format(str(v)) for v in unique[:20]]
-            detected = next((f for f in formats if f), None)
+            # Detect the date format from the actual data and expose it,
+            # but keep the original values as they appear in the dataset.
+            detected = next(
+                (
+                    _detect_date_format(str(v))
+                    for v in unique[:20]
+                    if _detect_date_format(str(v))
+                ),
+                None,
+            )
             if detected:
                 entry["format"] = detected
-            else:
-                entry["format"] = "YYYY-MM-DD"
         meta[col] = entry
 
     return meta

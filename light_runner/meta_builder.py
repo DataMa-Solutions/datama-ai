@@ -171,10 +171,12 @@ def get_meta_from_dataset(
     order: 'asc' | 'desc' — order of unique values (default 'desc' to match Light).
     """
     meta: dict[str, dict[str, Any]] = {}
+
     if not source:
         return meta
 
     columns = list(source[0].keys())
+
     for col in columns:
         values = [row.get(col) for row in source]
         unique_raw = list(dict.fromkeys(v for v in values if v is not None and v != ""))

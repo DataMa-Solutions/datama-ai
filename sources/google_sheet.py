@@ -42,14 +42,6 @@ class GoogleSheetProvider(BaseSourceProvider):
     def kind(self) -> str:
         return SourceKind.GOOGLE_SHEET
 
-    def detect(self, url_or_message: str) -> str | None:
-        text = (url_or_message or "").strip().lower()
-        if "docs.google.com/spreadsheets" in text or "google sheet" in text:
-            return self.kind
-        if _extract_sheet_id(url_or_message):
-            return self.kind
-        return None
-
     def fetch(self, url_or_id: str) -> list[dict]:
         sheet_id = _extract_sheet_id(url_or_id)
         if not sheet_id:
@@ -58,40 +50,3 @@ class GoogleSheetProvider(BaseSourceProvider):
             )
         gid = _extract_gid(url_or_id)
         return _fetch_public_sheet_csv(sheet_id, gid)
-
-
-def _get_credentials() -> "object | None":
-    """Return service account credentials if configured, else None (use public CSV)."""
-    try:
-        import streamlit as st
-
-        secrets = getattr(st, "secrets", None) or {}
-        creds_dict = secrets.get("gcp_service_account") or secrets.get(
-            "google_credentials"
-        )
-        if creds_dict:
-            from google.oauth2.service_account import Credentials
-
-            return Credentials.from_service_account_info(
-                creds_dict,
-                scopes=[
-                    "https://www.googleapis.com/auth/spreadsheets.readonly",
-                    "https://www.googleapis.com/auth/drive.readonly",
-                ],
-            )
-    except Exception:
-        pass
-    import os
-
-    path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-    if path and os.path.isfile(path):
-        from google.oauth2.service_account import Credentials
-
-        return Credentials.from_service_account_file(
-            path,
-            scopes=[
-                "https://www.googleapis.com/auth/spreadsheets.readonly",
-                "https://www.googleapis.com/auth/drive.readonly",
-            ],
-        )
-    return None

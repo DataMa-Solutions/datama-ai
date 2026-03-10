@@ -9,7 +9,13 @@ def build_embed_html(dataset: list, conf: dict) -> str:
     """
     Build an HTML string that contains an iframe and a script that posts the payload
     to the iframe once it has loaded. The iframe loads RUNNER_URL.
+
+    Only call this when a valid payload (dataset + conf) is available; otherwise
+    the DataMaLight runner would have no data and could crash. If dataset or conf
+    is missing/empty, returns a minimal placeholder div without instantiating Light.
     """
+    if not dataset or not conf:
+        return '<div id="light-runner-wrap" style="width:100%; min-height:80px; padding:12px; color:#666;">Aucune donnée à afficher.</div>'
     runner_url = RUNNER_URL
 
     # ----- REMOVABLE: button to fetch RUNNER_URL (delete this block to remove) -----

@@ -1,6 +1,7 @@
 """
-Streamlit chat app: agent fetches data from URL (e.g. Google Sheet), builds
-DataMaLight Compare conf + dataset via LLM, and displays the Compare view in an iframe.
+Streamlit chat app: agent accepts any prompt and keeps message history. When the user
+provides a data source URL (e.g. Google Sheet), the LLM uses the fetch_datas tool;
+then we build DataMaLight Compare conf + dataset and display the Compare view in an iframe.
 """
 
 from dotenv import load_dotenv
@@ -27,7 +28,7 @@ for msg in st.session_state.messages:
             conf = msg["payload"].get("conf", {})
             if dataset and conf:
                 html = build_embed_html(dataset, conf)
-                components.html(html, height=550, scrolling=False)
+                components.html(html, height=600, scrolling=False)
 
 if prompt := st.chat_input("Paste a Google Sheet URL (or message)..."):
     st.session_state.messages.append({"role": "user", "content": prompt})

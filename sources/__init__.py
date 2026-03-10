@@ -7,21 +7,10 @@ __all__ = [
     "SourceKind",
     "BaseSourceProvider",
     "GoogleSheetProvider",
-    "detect_source",
     "fetch_data",
 ]
 
 _REGISTRY: list[BaseSourceProvider] = [GoogleSheetProvider()]
-
-
-def detect_source(url_or_message: str) -> str | None:
-    """Detect which source type the URL or user message refers to."""
-    text = (url_or_message or "").strip().lower()
-    for provider in _REGISTRY:
-        kind = provider.detect(text)
-        if kind:
-            return kind
-    return None
 
 
 def fetch_data(source_kind: str, url_or_id: str) -> list[dict]:

@@ -1,47 +1,9 @@
 """Agent orchestration: LLM with tools; if fetch_datas used, build conf + dataset for Light, else chat."""
 
 import json
-from agent.llm import call_llm, parse_json_from_response
+from agent.llm import call_llm
+from agent.prompts import ROUTER_SYSTEM_PROMPT
 from agent.validator import validate_compare_payload
-
-_ROUTER_SYSTEM_PROMPT = """\
-You are a helpful data-analysis assistant for DataMa Compare.
-
-## When to call the fetch_datas tool
-
-1. **New data source URL in the LATEST user message**
-   The user's most recent message contains a spreadsheet / data-source URL
-   (e.g. Google Sheets, BigQuery, GA4…).
-   → Call fetch_datas with that URL.
-
-2. **User asks to regenerate / modify the graph with different options**
-   The user says something like "regenerate with only these metrics",
-   "change the dimensions", "redo the graph but filter on …", etc.
-   There is NO new URL, but a previous URL exists in the conversation history.
-   → Call fetch_datas with the most recent URL found in earlier user messages.
-
-## When NOT to call the tool
-
-3. **User asks about the current graph / data**
-   Questions such as "what are the metrics?", "which dimensions are used?",
-   "explain the last graph", etc.
-   The conversation already contains the dataset configuration
-   (look for `[DataMa Configuration]` blocks in assistant messages).
-   → Answer directly using that configuration. Do NOT re-fetch.
-
-4. **General / unrelated question**
-   The message has nothing to do with fetching data (greetings, general
-   knowledge, help request…).
-   → Answer normally without calling any tool.
-
-## Important rules
-- NEVER call fetch_datas just because a URL appears in an older message.
-  Only call it when rule 1 or 2 applies.
-- When answering about the current dataset (rule 3), refer to the
-  `[DataMa Configuration]` block present in the conversation: it contains
-  dimensions, metrics, steps, inputs, and configuration.
-- Always reply in the same language the user writes in.
-"""
 
 
 def _history_to_input_messages(history: list[dict], new_message: str) -> list[dict]:
@@ -57,17 +19,18 @@ def _history_to_input_messages(history: list[dict], new_message: str) -> list[di
             payload = msg.get("payload") or {}
             conf = payload.get("conf")
             if conf is not None:
-                conf_block = (
-                    "\n\n[DataMa Configuration]\n"
-                    f"dimensions: {json.dumps(conf.get('dimensions', []))}\n"
-                    f"metrics: {json.dumps(conf.get('metrics', []))}\n"
-                    f"steps: {json.dumps(conf.get('steps', []))}\n"
-                    f"inputs: {json.dumps(conf.get('inputs', {}))}\n"
-                    f"configuration: {json.dumps(conf.get('configuration', {}))}\n"
-                    "[/DataMa Configuration]"
+                content = json.dumps(
+                    {
+                        "message": content,
+                        "configuration": {
+                            "dimensions": conf.get("dimensions", []),
+                            "metrics": conf.get("metrics", []),
+                            "steps": conf.get("steps", []),
+                            "inputs": conf.get("inputs", {}),
+                            "configuration": conf.get("configuration", {}),
+                        },
+                    }
                 )
-                content += conf_block
-
         messages.append({"role": role, "content": content})
 
     messages.append({"role": "user", "content": new_message})
@@ -100,7 +63,7 @@ def run(message: str, history: list[dict] | None = None) -> dict:
 
     try:
         response_text, raw_rows = call_llm(
-            instructions=_ROUTER_SYSTEM_PROMPT,
+            instructions=ROUTER_SYSTEM_PROMPT,
             input_messages=input_messages,
             use_tools=True,
         )
@@ -111,37 +74,52 @@ def run(message: str, history: list[dict] | None = None) -> dict:
             "error": str(e),
         }
 
-    # No tool was used: return assistant text only
+    # Parse response: always at least { "message": "..." }; with tool, also { "configuration": {...} }
+    raw = (response_text or "").strip()
+    try:
+        obj = json.loads(raw) if raw else None
+    except json.JSONDecodeError:
+        obj = None
+
+    # No tool was used: use message from object or fallback to raw text
     if raw_rows is None:
+        message = (obj.get("message") if isinstance(obj, dict) else None) or raw or ""
         return {
-            "message": response_text or "",
+            "message": message,
             "payload": None,
             "error": None,
         }
 
-    # fetch_datas was used: response_text is the config JSON from INSTRUCTION_URL step
+    # fetch_datas was used: expect { "message", "configuration" }
     if not raw_rows:
         return {
             "message": "The sheet appears to be empty or has no data rows.",
             "payload": None,
             "error": None,
         }
-    payload = parse_json_from_response(response_text)
-    if not payload:
+    if not isinstance(obj, dict) or "configuration" not in obj:
         return {
-            "message": "I could not parse a valid JSON payload from the model. Please try again or simplify the sheet.",
+            "message": "I could not parse a valid response from the model (expected JSON with message and configuration). Please try again.",
             "payload": None,
             "error": "JSON parse failed",
         }
 
-    metrics = payload.get("metrics")
-    inputs = payload.get("inputs") or {}
-    if metrics and "metricForClustering" not in inputs:
-        inputs["metricForClustering"] = metrics[-1]
-        payload["inputs"] = inputs
+    conf_obj = obj["configuration"]
+    if not isinstance(conf_obj, dict):
+        return {
+            "message": "Invalid configuration from the model.",
+            "payload": None,
+            "error": "configuration must be an object",
+        }
 
-    payload["dataset"] = raw_rows
-    validation_errors = validate_compare_payload(payload)
+    metrics = conf_obj.get("metrics")
+    inputs = conf_obj.get("inputs") or {}
+    if metrics and "metricForClustering" not in inputs:
+        inputs = {**inputs, "metricForClustering": metrics[-1]}
+        conf_obj = {**conf_obj, "inputs": inputs}
+
+    payload_for_validate = {**conf_obj, "dataset": raw_rows}
+    validation_errors = validate_compare_payload(payload_for_validate)
     if validation_errors:
         return {
             "message": "The generated configuration has issues:\n- "
@@ -151,16 +129,15 @@ def run(message: str, history: list[dict] | None = None) -> dict:
         }
 
     conf = {
-        "dimensions": payload.get("dimensions", []),
-        "metrics": payload.get("metrics", []),
-        "steps": payload.get("steps", []),
-        "inputs": payload.get("inputs", {}),
-        "configuration": payload.get("configuration", {}),
+        "dimensions": conf_obj.get("dimensions", []),
+        "metrics": conf_obj.get("metrics", []),
+        "steps": conf_obj.get("steps", []),
+        "inputs": conf_obj.get("inputs", {}),
+        "configuration": conf_obj.get("configuration", {}),
     }
-    dataset = payload.get("dataset", [])
 
     return {
-        "message": "Here is your Compare view.",
-        "payload": {"dataset": dataset, "conf": conf},
+        "message": obj.get("message"),
+        "payload": {"dataset": raw_rows, "conf": conf},
         "error": None,
     }

@@ -4,6 +4,7 @@ import json
 import os
 from datetime import date
 from urllib.request import urlopen
+from agent.tools import get_tools
 
 import openai
 from openai.types.responses import Response
@@ -39,31 +40,6 @@ def get_client():
     return openai.OpenAI(api_key=api_key)
 
 
-def get_tools():
-    return [
-        {
-            "type": "function",
-            "name": "fetch_datas",
-            "description": "Fetch data from a supported source using its URL. Use source_kind to select the provider: google_sheet, ga4, bigquery, metabase (see SourceKind). Use when the user provides a spreadsheet or data source link. Returns row count, column names, and a short preview.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "source_kind": {
-                        "type": "string",
-                        "description": "Determines which provider is used to fetch the data.",
-                        "enum": ["google_sheet"],
-                    },
-                    "url": {
-                        "type": "string",
-                        "description": "Full URL of the data source (e.g. https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit for Google Sheet). Must be public or shared with link when applicable.",
-                    },
-                },
-                "required": ["source_kind", "url"],
-            },
-        }
-    ]
-
-
 def _load_instruction_url() -> str:
     """Load instructions from INSTRUCTION_URL."""
     try:
@@ -71,22 +47,6 @@ def _load_instruction_url() -> str:
             return resp.read().decode("utf-8")
     except Exception:
         return ""
-
-
-def _last_user_content(input_messages: list[dict]) -> str:
-    """Extract the last user message content from a list of messages."""
-    for item in reversed(input_messages):
-        role = (
-            item.get("role") if isinstance(item, dict) else getattr(item, "role", None)
-        )
-        content = (
-            item.get("content")
-            if isinstance(item, dict)
-            else getattr(item, "content", "")
-        )
-        if role == "user":
-            return content if isinstance(content, str) else ""
-    return ""
 
 
 def call_llm(
@@ -156,14 +116,7 @@ def call_llm(
     today_str = date.today().strftime("%Y-%m-%d")
 
     # Reload instructions from INSTRUCTION_URL and build config user message (meta + prompt)
-    config_instructions = _load_instruction_url() + f"""
-        Today is {today_str}.
-
-        Metadata (meta) for the dataset is below in a CSV block. One row per column: column, type, format, n_unique, unique_values (pipe-separated, truncated). Use this to choose dimensions (categorical/date columns), metrics (numeric columns), and build the Compare config. Do NOT include "dataset" or "meta" in your output; we already have the data and meta.
-        ```csv
-        {meta_csv}
-        ```
-        """
+    config_instructions = _load_instruction_url() + f"Today is {today_str}." ""
 
     config_text, _ = call_llm(
         instructions=config_instructions,
@@ -172,27 +125,3 @@ def call_llm(
         model=model,
     )
     return (config_text, dataset)
-
-
-def parse_json_from_response(text: str) -> dict | None:
-    """Extract a single JSON object from the model response (handles markdown code blocks)."""
-    text = (text or "").strip()
-    start = text.find("{")
-    if start == -1:
-        return None
-    depth = 0
-    end = -1
-    for i in range(start, len(text)):
-        if text[i] == "{":
-            depth += 1
-        elif text[i] == "}":
-            depth -= 1
-            if depth == 0:
-                end = i + 1
-                break
-    if end == -1:
-        return None
-    try:
-        return json.loads(text[start:end])
-    except json.JSONDecodeError:
-        return None

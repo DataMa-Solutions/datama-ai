@@ -1,28 +1,48 @@
 ## Architecture and flow – `datama-ai`
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+  'darkMode': 'false',
+  'background': '#ffffff',
+  'primaryColor': '#e8e8e8',
+  'primaryTextColor': '#111111',
+  'primaryBorderColor': '#333333',
+  'secondaryColor': '#e0e0e0',
+  'secondaryTextColor': '#111111',
+  'secondaryBorderColor': '#333333',
+  'tertiaryColor': '#d8d8d8',
+  'tertiaryTextColor': '#111111',
+  'tertiaryBorderColor': '#333333',
+  'lineColor': '#333333',
+  'textColor': '#111111',
+  'mainBkg': '#eeeeee',
+  'nodeBorder': '#333333',
+  'nodeTextColor': '#111111',
+  'clusterBkg': '#e8e8e8',
+  'clusterBorder': '#333333',
+  'titleColor': '#111111',
+  'defaultLinkColor': '#333333',
+  'edgeLabelBackground': '#ffffff'
+}}}%%
 flowchart TB
-    subgraph Storage["Datama GCS storage"]
+    subgraph Storage["Datama AI kit"]
         GCS["Bucket ai-datama-light\n(instruction + runner)"]
     end
 
     subgraph Client["Client side"]
         U["User"]
         STREAM["Chat Streamlit app.py"]
+        EMBED["Embed iframe + postMessage"]
+        VIEW["Compare view"]
     end
 
-    subgraph Backend["Datama-ai backend"]
+    subgraph Backend["Backend"]
         AG["LLM Agent orchestrator"]
         FETCH["fetch_datas + meta + config LLM"]
     end
 
     subgraph Sources["Data sources"]
         SOURCE["Google Sheet / BigQuery / other"]
-    end
-
-    subgraph Light["Rendering (DataMaLight)"]
-        EMBED["Embed iframe + postMessage"]
-        VIEW["Compare view"]
     end
 
     %% User -> backend flow
@@ -43,6 +63,20 @@ flowchart TB
     GCS -->|"load runner HTML"| EMBED
     EMBED -->|"postMessage {dataset, conf}"| VIEW
     VIEW -->|"interactive waterfall"| U
+
+    %% Subgraph styles: fill + dark text + dark border (readable in dark mode)
+    style Storage fill:#16D0B4,stroke:#0d5c4a,color:#111111
+    style Client fill:#add8e6,stroke:#2a7a8f,color:#111111
+    style Backend fill:#fffacd,stroke:#b8a800,color:#111111
+    style Sources fill:#c8d4e0,stroke:#2d3d4d,color:#111111
+    style GCS fill:#2ee6c8,stroke:#0d5c4a,color:#111111
+    style U fill:#87ceeb,stroke:#2a7a8f,color:#111111
+    style STREAM fill:#87ceeb,stroke:#2a7a8f,color:#111111
+    style EMBED fill:#87ceeb,stroke:#2a7a8f,color:#111111
+    style VIEW fill:#87ceeb,stroke:#2a7a8f,color:#111111
+    style AG fill:#fff9a0,stroke:#b8a800,color:#111111
+    style FETCH fill:#fff9a0,stroke:#b8a800,color:#111111
+    style SOURCE fill:#a8b8c8,stroke:#2d3d4d,color:#111111
 ```
 
 **Note** — The **instruction** file (`instruction-runner.ai-toolkit.md`) and the **runner** (`runner.ai-toolkit.html`) are **downloaded from Datama GCS storage** (bucket `ai-datama-light`). The **conf** is **produced by the LLM** from the **meta** and the **user question**, following that instruction file.

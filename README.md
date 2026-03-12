@@ -1,10 +1,14 @@
 ## Datama AI
 
-Technical documentation for the `datama-ai` project.
+This repo is an **MVP demo** of a “**Chat with my data**” flow that calls a **Datama-provided AI kit**. The goal is to show how any “Chat with my data” product can use Datama’s analysis and visualization capabilities **without sending data to Datama**: only the HTML and instructions from the AI kit (runner + instruction) are loaded from Datama; your data stays on your side and is processed locally by your agent, which produces a configuration and feeds the Datama runner via payload.
 
-This project is a small **Streamlit** application that runs a Datama AI locally. It integrates with **OpenAI** and **Datama Light** to build and execute analytical workflows based on user data.
+The **detailed architecture** (user flow, backend, data sources, rendering) is described in **[ARCHITECTURE_DATAMA_AI_MERMAID.md](ARCHITECTURE_DATAMA_AI_MERMAID.md)**.
 
-The main entrypoint is `app.py`. The `run.sh` script is a thin wrapper that manages the Python virtual environment and starts Streamlit.
+---
+
+On the technical side, this project is a small **Streamlit** application that runs this flow locally. It uses **OpenAI** and **Datama Light** (runner loaded from the kit) to build and run analytical workflows from the user’s data.
+
+Main entrypoint: `app.py`. The `run.sh` script manages the Python virtual environment and starts Streamlit.
 
 ---
 

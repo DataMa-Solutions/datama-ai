@@ -14,6 +14,7 @@ from agent import run as run_agent
 from light_runner.iframe_html import build_embed_html
 from app_header import render_app_header
 
+
 st.set_page_config(
     page_title="Datama — AI Chat",
     page_icon="assets/datama-favicon.png",

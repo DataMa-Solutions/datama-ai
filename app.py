@@ -12,13 +12,14 @@ import streamlit.components.v1 as components
 
 from agent import run as run_agent
 from light_runner.iframe_html import build_embed_html
+from app_header import render_app_header
 
-st.set_page_config(page_title="DataMaLight Chat", layout="centered")
+st.set_page_config(page_title="Datama AI Chat", layout="centered")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-st.title("DataMaLight Compare – Chat")
+render_app_header()
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
@@ -30,9 +31,11 @@ for msg in st.session_state.messages:
                 html = build_embed_html(dataset, conf)
                 components.html(html, height=600, scrolling=False)
 
-if prompt := st.chat_input("Paste a Google Sheet URL (or message)..."):
+if prompt := st.chat_input(
+    "Prompt instruction (data should be provided through Gsheet public url)"
+):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.spinner("Fetching data and building Compare..."):
+    with st.spinner("Thinking..."):
         result = run_agent(prompt, st.session_state.messages[:-1])
     st.session_state.messages.append(
         {

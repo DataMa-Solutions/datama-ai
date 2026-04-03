@@ -4,6 +4,14 @@ This repo is an **MVP demo** of a “**Chat with my data**” flow that calls a 
 
 The **detailed architecture** (user flow, backend, data sources, rendering) is described in **[ARCHITECTURE_DATAMA_AI_MERMAID.md](ARCHITECTURE_DATAMA_AI_MERMAID.md)**.
 
+### Demo
+
+Short screen recording of the app:
+
+![Datama AI chat demo](assets/Datama%20AI%20chat.gif)
+
+Full video on YouTube: [youtu.be/UCVyx9WpUVM](https://youtu.be/UCVyx9WpUVM).
+
 ---
 
 On the technical side, this project is a small **Streamlit** application that runs this flow locally. It uses **OpenAI** and **Datama Light** (runner loaded from the kit) to build and run analytical workflows from the user’s data.

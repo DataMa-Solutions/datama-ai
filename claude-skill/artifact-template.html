@@ -6,8 +6,8 @@
 
 <!-- DataMa Light (Compare) — CDN build. UMD: exposes window.DataMaLight.render()
      d3 is already bundled in the UMD file, no separate script tag needed. -->
-<link rel="stylesheet" href="https://unpkg.com/@datama/light/dist/compare.css">
-<script src="https://unpkg.com/@datama/light/dist/compare.umd.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@datama/light@0.2.0/dist/compare.css">
+<script src="https://cdn.jsdelivr.net/npm/@datama/light@0.2.0/dist/compare.umd.js"></script>
 
 <style>
   html, body { margin: 0; padding: 0; height: 100%; }
@@ -47,7 +47,7 @@
   }
 
   if (typeof window.DataMaLight !== 'function' || typeof window.DataMaLight.render !== 'function') {
-    showError('DataMa Light failed to load from unpkg. Check that the Artifact sandbox allows https://unpkg.com script loads.');
+    showError('DataMa Light failed to load from jsdelivr. Check that the Artifact sandbox allows https://cdn.jsdelivr.net script loads.');
     return;
   }
 

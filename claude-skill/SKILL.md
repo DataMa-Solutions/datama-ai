@@ -5,10 +5,10 @@ description: Generates an interactive Datama Compare visualization (variance dec
 
 # Datama Compare Skill
 
-Produces a **Claude Artifact** that renders the Datama Compare visualization — an interactive variance decomposition / waterfall — by loading the public Datama Light UMD bundle from a CDN (unpkg) and calling `DataMaLight.render(container, {source, configuration, license})` directly in the Artifact page.
+Produces a **Claude Artifact** that renders the Datama Compare visualization — an interactive variance decomposition / waterfall — by loading the public Datama Light UMD bundle from a CDN (jsdelivr) and calling `DataMaLight.render(container, {source, configuration, license})` directly in the Artifact page.
 
 All rendering happens in the user's browser. The user's data never leaves the Claude session. The only outbound calls from the Artifact are:
-- the static JS/CSS fetch from `unpkg.com/@datama/light` (the library code),
+- the static JS/CSS fetch from `cdn.jsdelivr.net/npm/@datama/light` (the library code),
 - optional license validation, which sends the JWT license key only (no dataset).
 
 ## Workflow
@@ -28,11 +28,11 @@ When this skill is triggered, proceed in order:
    - `__CONFIGURATION__` → the `configuration` object as JSON
    - `__LICENSE_KEY__` → the license key as a JSON string (quoted), or `null` if none
 
-   Keep the `<link>` and `<script>` tags that point to `https://unpkg.com/@datama/light/...` unchanged. Do not add external scripts beyond those. Do not reimplement Compare logic yourself.
+   Keep the `<link>` and `<script>` tags that point to `https://cdn.jsdelivr.net/npm/@datama/light@0.2.0/...` unchanged. Do not add external scripts beyond those. Do not reimplement Compare logic yourself.
 
 ## Rules
 
-- **Never** change the CDN URLs. They must resolve to `https://unpkg.com/@datama/light/dist/compare.umd.js` and `https://unpkg.com/@datama/light/dist/compare.css`. (The `jsdelivr` mirror — `https://cdn.jsdelivr.net/npm/@datama/light/dist/compare.umd.js` — is an acceptable fallback if unpkg is blocked, but use unpkg by default.)
+- **Never** change the CDN URLs. They must resolve to `https://cdn.jsdelivr.net/npm/@datama/light@0.2.0/dist/compare.umd.js` and `https://cdn.jsdelivr.net/npm/@datama/light@0.2.0/dist/compare.css`. The version is pinned to force cache invalidation — jsdelivr caches the "latest" pointer for up to 12h, so an unpinned URL can serve a stale build. jsdelivr is explicitly allowlisted by the Claude Artifact sandbox CSP. The `unpkg` mirror — `https://unpkg.com/@datama/light@0.2.0/dist/compare.umd.js` — serves the same file but is blocked in the inline Artifact iframe (it only works when the Artifact is popped out to a standalone window), so do not use it.
 - **Never** rebuild the visualization in plain JS or React — always go through `window.DataMaLight.render`.
 - **Never** send dataset rows to any URL. The bundle consumes the dataset in-page (passed as the `source` argument to `render`) and keeps it in the browser.
 - The Artifact must be valid standalone HTML (the only external resources are the two CDN files above).
@@ -46,6 +46,7 @@ When this skill is triggered, proceed in order:
 
 ## Reference
 
-- CDN bundle: `https://unpkg.com/@datama/light/dist/compare.umd.js` (UMD, d3 included). Also at `https://cdn.jsdelivr.net/npm/@datama/light/dist/compare.umd.js`.
-- CDN styles: `https://unpkg.com/@datama/light/dist/compare.css`.
+- CDN bundle: `https://cdn.jsdelivr.net/npm/@datama/light@0.2.0/dist/compare.umd.js` (UMD, d3 included).
+- CDN styles: `https://cdn.jsdelivr.net/npm/@datama/light@0.2.0/dist/compare.css`.
 - Runtime API: `window.DataMaLight.render(containerOrSelector, { source, configuration, license })` — returns a `Promise<DataMaLight>`.
+- The unpkg mirror (`https://unpkg.com/@datama/light@0.2.0/...`) serves the same file but is blocked in Claude's inline Artifact sandbox; do not reference it.

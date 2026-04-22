@@ -3,46 +3,65 @@
 <head>
 <meta charset="utf-8">
 <title>Datama Compare</title>
+
+<!-- DataMa Light (Compare) — CDN build. UMD: exposes window.DataMaLight.render()
+     d3 is already bundled in the UMD file, no separate script tag needed. -->
+<link rel="stylesheet" href="https://unpkg.com/@datama/light/dist/compare.css">
+<script src="https://unpkg.com/@datama/light/dist/compare.umd.js"></script>
+
 <style>
   html, body { margin: 0; padding: 0; height: 100%; }
   body { font-family: system-ui, -apple-system, sans-serif; background: #fff; }
-  #light-runner-wrap { width: 100%; min-height: 600px; }
-  #light-runner-iframe {
+  #datama-compare {
     width: 100%;
-    height: 600px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    display: block;
+    min-height: 600px;
+  }
+  #datama-error {
+    display: none;
+    padding: 12px 16px;
+    background: #fff4f4;
+    border: 1px solid #e3b0b0;
+    color: #8a1c1c;
+    font: 13px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+    white-space: pre-wrap;
   }
 </style>
 </head>
 <body>
-<div id="light-runner-wrap">
-  <iframe
-    id="light-runner-iframe"
-    src="https://storage.googleapis.com/app2.datama.io/ai-datama-light/latest/compare/runner.ai-toolkit.html"
-    title="Datama Compare"></iframe>
-</div>
+
+<div id="datama-compare"></div>
+<div id="datama-error"></div>
+
 <script>
 (function () {
   // --- Substituted by Claude when producing the Artifact ---
-  var DATASET = __DATASET__;
+  var DATASET       = __DATASET__;
   var CONFIGURATION = __CONFIGURATION__;
-  var LICENSE_KEY = __LICENSE_KEY__; // JSON string or null
+  var LICENSE_KEY   = __LICENSE_KEY__; // JWT string, or null
   // ---------------------------------------------------------
-  var iframe = document.getElementById("light-runner-iframe");
-  var payload = {
-    type: "datama-light-payload",
-    dataset: DATASET,
-    configuration: CONFIGURATION
-  };
-  if (LICENSE_KEY) payload.userLicenseKey = LICENSE_KEY;
-  // Send the payload as an object (not a JSON string). The runner reads
-  // event.data.type directly, so a stringified payload would be ignored.
-  function send() {
-    try { iframe.contentWindow.postMessage(payload, "*"); } catch (e) {}
+
+  function showError(msg) {
+    var el = document.getElementById('datama-error');
+    el.style.display = 'block';
+    el.textContent = msg;
   }
-  iframe.addEventListener("load", send);
+
+  if (typeof window.DataMaLight !== 'function' || typeof window.DataMaLight.render !== 'function') {
+    showError('DataMa Light failed to load from unpkg. Check that the Artifact sandbox allows https://unpkg.com script loads.');
+    return;
+  }
+
+  try {
+    window.DataMaLight.render('#datama-compare', {
+      source: DATASET,
+      configuration: CONFIGURATION,
+      license: LICENSE_KEY || ''
+    }).catch(function (err) {
+      showError('DataMa Light render error:\n' + (err && (err.stack || err.message) || err));
+    });
+  } catch (err) {
+    showError('DataMa Light threw synchronously:\n' + (err && (err.stack || err.message) || err));
+  }
 })();
 </script>
 </body>

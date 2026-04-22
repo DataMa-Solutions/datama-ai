@@ -5,9 +5,11 @@ description: Generates an interactive Datama Compare visualization (variance dec
 
 # Datama Compare Skill
 
-Produces a **Claude Artifact** that renders the Datama Compare visualization — an interactive variance decomposition / waterfall — by embedding the public Datama Light runner in an iframe and pushing the dataset and configuration to it via `postMessage`.
+Produces a **Claude Artifact** that renders the Datama Compare visualization — an interactive variance decomposition / waterfall — by loading the public Datama Light UMD bundle from a CDN (unpkg) and calling `DataMaLight.render(container, {source, configuration, license})` directly in the Artifact page.
 
-All rendering happens in the user's browser. The user's data never leaves the Claude session. The only outbound call to Datama is an optional license validation that sends the license key (no dataset).
+All rendering happens in the user's browser. The user's data never leaves the Claude session. The only outbound calls from the Artifact are:
+- the static JS/CSS fetch from `unpkg.com/@datama/light` (the library code),
+- optional license validation, which sends the JWT license key only (no dataset).
 
 ## Workflow
 
@@ -15,7 +17,7 @@ When this skill is triggered, proceed in order:
 
 1. **Get the dataset.** The dataset is a tabular structure (list of row objects) from whatever source the user has made available: a connector you can call (Google Sheets, BigQuery, …), an uploaded CSV / XLSX file, or data pasted in the conversation. If the raw data is larger than ~20 000 rows or would blow the Artifact size limit, aggregate it along the requested dimensions *before* continuing.
 
-2. **Read the license key if present.** Look in the project's attached files / knowledge for a file named exactly `license.txt`. If it exists, read its content, trim whitespace, and keep it as `LICENSE_KEY`. If not present, proceed without — the runner falls back to the free tier.
+2. **Read the license key if present.** Look in the project's attached files / knowledge for a file named exactly `license.txt`. If it exists, read its content, trim whitespace, and keep it as `LICENSE_KEY` (it is a JWT string). If not present, proceed without — the bundle falls back to the free tier.
 
 3. **Derive column metadata** from the dataset: for each column, determine its name, its inferred type (`dimension` for strings/dates, `metric` for numerics), and a few distinct values for text columns. This is the input the Compare instructions expect.
 
@@ -24,16 +26,16 @@ When this skill is triggered, proceed in order:
 5. **Emit the Artifact.** Produce a single Artifact of type `text/html` using the exact pattern in `artifact-template.html`. Replace the three placeholders:
    - `__DATASET__` → the dataset as a JSON array
    - `__CONFIGURATION__` → the `configuration` object as JSON
-   - `__LICENSE_KEY__` → the license key as a JSON string, or `null` if none
+   - `__LICENSE_KEY__` → the license key as a JSON string (quoted), or `null` if none
 
-   Keep the iframe `src` unchanged. Do not add external scripts. Do not reimplement Compare logic yourself.
+   Keep the `<link>` and `<script>` tags that point to `https://unpkg.com/@datama/light/...` unchanged. Do not add external scripts beyond those. Do not reimplement Compare logic yourself.
 
 ## Rules
 
-- **Never** change the iframe `src`. The runner must load from `https://storage.googleapis.com/app2.datama.io/ai-datama-light/latest/compare/runner.ai-toolkit.html`.
-- **Never** rebuild the visualization in plain JS or React — always go through the iframe runner.
-- **Never** send dataset rows to any URL. Only the iframe receives the data (via `postMessage` on the same page), and the runner keeps it in the browser.
-- The Artifact must be valid standalone HTML (no external resources beyond the iframe).
+- **Never** change the CDN URLs. They must resolve to `https://unpkg.com/@datama/light/dist/compare.umd.js` and `https://unpkg.com/@datama/light/dist/compare.css`. (The `jsdelivr` mirror — `https://cdn.jsdelivr.net/npm/@datama/light/dist/compare.umd.js` — is an acceptable fallback if unpkg is blocked, but use unpkg by default.)
+- **Never** rebuild the visualization in plain JS or React — always go through `window.DataMaLight.render`.
+- **Never** send dataset rows to any URL. The bundle consumes the dataset in-page (passed as the `source` argument to `render`) and keeps it in the browser.
+- The Artifact must be valid standalone HTML (the only external resources are the two CDN files above).
 - If the dataset doesn't fit the schema in `compare-instructions.md`, normalize column names and types first — do not fabricate missing columns.
 - If data or configuration cannot be produced (missing metrics, unclear comparison axis), ask the user a clarifying question *before* emitting the Artifact — an empty Artifact is worse than no Artifact.
 
@@ -44,5 +46,6 @@ When this skill is triggered, proceed in order:
 
 ## Reference
 
-- Runner URL: `https://storage.googleapis.com/app2.datama.io/ai-datama-light/latest/compare/runner.ai-toolkit.html`
-- `postMessage` contract: `{ type: "datama-light-payload", dataset, configuration, userLicenseKey? }`
+- CDN bundle: `https://unpkg.com/@datama/light/dist/compare.umd.js` (UMD, d3 included). Also at `https://cdn.jsdelivr.net/npm/@datama/light/dist/compare.umd.js`.
+- CDN styles: `https://unpkg.com/@datama/light/dist/compare.css`.
+- Runtime API: `window.DataMaLight.render(containerOrSelector, { source, configuration, license })` — returns a `Promise<DataMaLight>`.

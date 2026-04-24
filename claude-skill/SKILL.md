@@ -1,5 +1,5 @@
 ---
-name: Datama Compare
+name: analysis-variance
 description: Generates an interactive Datama Compare visualization (variance decomposition / waterfall) as an HTML Artifact. Use when the user wants to understand why a KPI changed between two periods or segments, decompose variance (mix / price / volume / rate effects), compare groups, or build a waterfall chart. Typical triggers include "why did sessions drop", "compare Q1 vs Q2", "decompose revenue change", "analyze variance on X", "what explains the delta in Y".
 ---
 

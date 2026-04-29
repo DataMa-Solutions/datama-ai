@@ -2,17 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Datama Compare</title>
+<title>Datama __SOLUTION__</title>
 
-<!-- DataMa Light (Compare) — CDN build. UMD: exposes window.DataMaLight.render()
-     d3 is already bundled in the UMD file, no separate script tag needed. -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@datama/light@0.2.0/dist/compare.css">
-<script src="https://cdn.jsdelivr.net/npm/@datama/light@0.2.0/dist/compare.umd.js"></script>
+<!-- DataMa Light — CDN build. UMD: exposes window.DataMaLight.render()
+     d3 is already bundled in the UMD file, no separate script tag needed.
+     __SOLUTION__ is substituted by Claude with `compare` or `explore`. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@datama/light@0.3.0/dist/__SOLUTION__.css">
+<script src="https://cdn.jsdelivr.net/npm/@datama/light@0.3.0/dist/__SOLUTION__.umd.js"></script>
 
 <style>
   html, body { margin: 0; padding: 0; height: 100%; }
   body { font-family: system-ui, -apple-system, sans-serif; background: #fff; }
-  #datama-compare {
+  #datama-light {
     width: 100%;
     min-height: 600px;
   }
@@ -29,7 +30,7 @@
 </head>
 <body>
 
-<div id="datama-compare"></div>
+<div id="datama-light"></div>
 <div id="datama-error"></div>
 
 <script>
@@ -52,7 +53,7 @@
   }
 
   try {
-    window.DataMaLight.render('#datama-compare', {
+    window.DataMaLight.render('#datama-light', {
       source: DATASET,
       configuration: CONFIGURATION,
       license: LICENSE_KEY || ''

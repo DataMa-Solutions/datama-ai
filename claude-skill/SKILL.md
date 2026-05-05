@@ -7,9 +7,7 @@ description: Generates an interactive Datama Compare visualization (variance dec
 
 Produces a **Claude Artifact** that renders the Datama Compare visualization — an interactive variance decomposition / waterfall — by loading the public Datama Light UMD bundle from a CDN (jsdelivr) and calling `DataMaLight.render(container, {source, configuration, license})` directly in the Artifact page.
 
-All rendering happens in the user's browser. The user's data never leaves the Claude session. The only outbound calls from the Artifact are:
-- the static JS/CSS fetch from `cdn.jsdelivr.net/npm/@datama/light` (the library code),
-- optional license validation, which sends the JWT license key only (no dataset).
+All rendering happens in the user's browser. The user's data never leaves the Claude session. License validation is **client-only** — the bundle verifies the JWT signature in-page using the Web Crypto API (ES256 / P-256) against a public key shipped inside the bundle, so no token leaves the Artifact either. The only outbound calls are the static JS/CSS fetches from `cdn.jsdelivr.net/npm/@datama/light` (the library code).
 
 ## Workflow
 

@@ -1,9 +1,9 @@
-"""Agent orchestration: LLM with tools; if fetch_datas used, build conf + dataset for Light, else chat."""
+"""Agent orchestration: LLM with tools; build config + dataset for Datama, else chat."""
 
 import json
 from agent.llm import call_llm
 from agent.prompts import ROUTER_SYSTEM_PROMPT
-from agent.validator import validate_compare_payload
+from agent.validator import validate_payload_for_solution
 
 
 def _history_to_input_messages(history: list[dict], new_message: str) -> list[dict]:
@@ -22,6 +22,7 @@ def _history_to_input_messages(history: list[dict], new_message: str) -> list[di
                 content = json.dumps(
                     {
                         "message": content,
+                        "solution": payload.get("solution", "compare"),
                         "configuration": {
                             "dimensions": conf.get("dimensions", []),
                             "metrics": conf.get("metrics", []),
@@ -40,13 +41,13 @@ def _history_to_input_messages(history: list[dict], new_message: str) -> list[di
 def run(message: str, history: list[dict] | None = None) -> dict:
     """
     Run the agent: accept any prompt, use history for context. The LLM decides whether
-    to answer directly or to call fetch_datas. If fetch_datas is used, call_llm handles
-    the tool and the config step (INSTRUCTION_URL); we then validate and return payload.
+    to answer directly or to call prepare_datama_context. If that tool is used, call_llm handles
+    the tool and solution-specific config step; we then validate and return payload.
 
     Returns:
         {
             "message": str,       # Assistant text to show
-            "payload": dict | None  # If success: { "dataset", "conf" } for iframe/runner
+            "payload": dict | None  # If success: { "dataset", "conf", "solution" } for iframe/runner
             "error": str | None    # If failure: error message
         }
     """
@@ -54,7 +55,7 @@ def run(message: str, history: list[dict] | None = None) -> dict:
     message = (message or "").strip()
     if not message:
         return {
-            "message": "Posez une question ou donnez une URL de feuille pour afficher une vue Compare.",
+            "message": "Posez une question ou donnez une URL de feuille pour afficher une vue Datama.",
             "payload": None,
             "error": None,
         }
@@ -90,7 +91,7 @@ def run(message: str, history: list[dict] | None = None) -> dict:
             "error": None,
         }
 
-    # fetch_datas was used: expect { "message", "configuration" }
+    # Tool path was used: expect { "message", "configuration" } (and often "solution")
     if not raw_rows:
         return {
             "message": "The sheet appears to be empty or has no data rows.",
@@ -112,14 +113,20 @@ def run(message: str, history: list[dict] | None = None) -> dict:
             "error": "configuration must be an object",
         }
 
+    solution = "compare"
+    if isinstance(obj, dict):
+        raw_solution = str(obj.get("solution", "compare")).strip().lower()
+        if raw_solution in ("compare", "explore"):
+            solution = raw_solution
+
     metrics = conf_obj.get("metrics")
     inputs = conf_obj.get("inputs") or {}
-    if metrics and "metricForClustering" not in inputs:
+    if solution == "compare" and metrics and "metricForClustering" not in inputs:
         inputs = {**inputs, "metricForClustering": metrics[-1]}
         conf_obj = {**conf_obj, "inputs": inputs}
 
     payload_for_validate = {**conf_obj, "dataset": raw_rows}
-    validation_errors = validate_compare_payload(payload_for_validate)
+    validation_errors = validate_payload_for_solution(payload_for_validate, solution)
     if validation_errors:
         return {
             "message": "The generated configuration has issues:\n- "
@@ -138,6 +145,6 @@ def run(message: str, history: list[dict] | None = None) -> dict:
 
     return {
         "message": obj.get("message"),
-        "payload": {"dataset": raw_rows, "conf": conf},
+        "payload": {"dataset": raw_rows, "conf": conf, "solution": solution},
         "error": None,
     }

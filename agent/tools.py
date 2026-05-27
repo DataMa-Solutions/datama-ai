@@ -2,10 +2,10 @@ def get_tools():
     return [
         {
             "type": "function",
-            "name": "fetch_datas",
+            "name": "prepare_datama_context",
             "description": (
-                "Fetch data from a supported source by URL. Use when the user gives a new data-source URL, "
-                "or when the user asks to regenerate or change the Compare view (different comparison, metric, dimension, or segment) "
+                "Fetch data and set the Datama solution context. Use when the user gives a new data-source URL, "
+                "or when the user asks to regenerate or change the Datama view (different comparison, metric, dimension, or segment) "
                 "and a data-source URL already exists in the conversation—then use the most recent URL from the conversation."
             ),
             "parameters": {
@@ -16,6 +16,11 @@ def get_tools():
                         "description": "Provider for the data source.",
                         "enum": ["google_sheet"],
                     },
+                    "solution": {
+                        "type": "string",
+                        "description": "Datama solution to render for this request.",
+                        "enum": ["compare", "explore"],
+                    },
                     "url": {
                         "type": "string",
                         "description": (
@@ -24,7 +29,7 @@ def get_tools():
                         ),
                     },
                 },
-                "required": ["source_kind", "url"],
+                "required": ["source_kind", "solution", "url"],
             },
         }
     ]

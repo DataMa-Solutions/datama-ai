@@ -1,6 +1,10 @@
-"""AI Toolkit URLs: runner and instructions deployed to GCS by light/scripts/deploy/aiToolkit.sh."""
+"""AI toolkit URLs deployed by light deploy-tools workflow."""
 
-BASE_URL = "https://storage.googleapis.com/app2.datama.io/ai-datama-light/latest/"
+BASE_URL = "https://storage.googleapis.com/app2.datama.io/artificial-intelligence/tools/"
 
-RUNNER_URL = BASE_URL + "compare/runner.ai-toolkit.html"
-INSTRUCTION_URL = BASE_URL + "compare/instruction-runner.ai-toolkit.md"
+RUNNER_URL = BASE_URL + "runner.html"
+INSTRUCTION_COMPARE_URL = BASE_URL + "compare/compare-instructions.md"
+INSTRUCTION_EXPLORE_URL = BASE_URL + "explore/explore-instructions.md"
+
+# Backward-compatible alias used by the current config step.
+INSTRUCTION_URL = INSTRUCTION_COMPARE_URL

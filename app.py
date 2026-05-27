@@ -1,7 +1,7 @@
 """
 Streamlit chat app: agent accepts any prompt and keeps message history. When the user
 provides a data source URL (e.g. Google Sheet), the LLM uses the fetch_datas tool;
-then we build DataMaLight Compare conf + dataset and display the Compare view in an iframe.
+then we build a DataMaLight configuration + dataset and display the selected view in an iframe.
 """
 
 from dotenv import load_dotenv
@@ -32,8 +32,9 @@ for msg in st.session_state.messages:
         if msg.get("payload") and msg["role"] == "assistant":
             dataset = msg["payload"].get("dataset", [])
             conf = msg["payload"].get("conf", {})
+            solution = msg["payload"].get("solution", "compare")
             if dataset and conf:
-                html = build_embed_html(dataset, conf)
+                html = build_embed_html(dataset, conf, solution)
                 components.html(html, height=600, scrolling=False)
 
 if prompt := st.chat_input(

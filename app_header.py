@@ -70,7 +70,7 @@ def render_app_header() -> None:
         </style>
 
         <div class="datama-header">
-          <h1 class="datama-header__title">Datama Compare AI Chat</h1>
+          <h1 class="datama-header__title">Datama AI Chat</h1>
           <div class="datama-help__container" aria-label="Learn more">
             <span class="datama-help__icon" aria-hidden="true">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">

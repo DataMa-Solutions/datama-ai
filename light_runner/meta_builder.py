@@ -1,6 +1,6 @@
 """
 Build meta from a dataset (list of row dicts) in the same shape as
-SourceMutator.getMetaData() so the Compare runner receives metadata consistent with Light.
+SourceMutator.getMetaData() so the toolkit runner receives metadata consistent with Light.
 
 Ref: light/src/resources/mutators/SourceMutator.js getMetaData(source, order, sanitizer)
      light/src/resources/DataMaLight.js __getSourceMetadata() -> getMetaData(source, 'desc')

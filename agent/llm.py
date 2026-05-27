@@ -11,13 +11,20 @@ from openai.types.responses import Response
 from sources import fetch_data
 
 from light_runner.meta_builder import get_meta_from_dataset, meta_to_csv
-from light_runner.urls import INSTRUCTION_URL
+from light_runner.urls import INSTRUCTION_COMPARE_URL, INSTRUCTION_EXPLORE_URL
 
 
-def fetch_datas(source_kind: str, url: str) -> tuple[str, list[dict]]:
+def _normalize_solution(solution: str | None) -> str:
+    raw = (solution or "compare").strip().lower()
+    return raw if raw in ("compare", "explore") else "compare"
+
+
+def prepare_datama_context(
+    source_kind: str, url: str, solution: str
+) -> tuple[str, list[dict], str]:
     """
-    Fetch data from the given source. source_kind must match a SourceKind (e.g. google_sheet, ga4).
-    Returns (meta_csv, rows) on success, or raises on failure.
+    Fetch data and normalize Datama solution.
+    Returns (meta_csv, rows, solution) on success, or raises on failure.
     """
     url = (url or "").strip()
     if not url:
@@ -29,7 +36,7 @@ def fetch_datas(source_kind: str, url: str) -> tuple[str, list[dict]]:
     if not rows:
         raise ValueError("The sheet appears to be empty or has no data rows.")
     meta = get_meta_from_dataset(rows, order="desc")
-    return meta, rows
+    return meta, rows, _normalize_solution(solution)
 
 
 def get_client():
@@ -40,13 +47,18 @@ def get_client():
     return openai.OpenAI(api_key=api_key)
 
 
-def _load_instruction_url() -> str:
-    """Load instructions from INSTRUCTION_URL."""
+def _load_remote_text(url: str) -> str:
+    """Load a remote text resource from URL."""
     try:
-        with urlopen(INSTRUCTION_URL, timeout=10) as resp:
+        with urlopen(url, timeout=10) as resp:
             return resp.read().decode("utf-8")
     except Exception:
         return ""
+
+
+def _build_config_instructions(instruction_url: str) -> str:
+    today_str = date.today().strftime("%Y-%m-%d")
+    return _load_remote_text(instruction_url) + f"Today is {today_str}."
 
 
 def call_llm(
@@ -60,10 +72,10 @@ def call_llm(
     Single LLM entry point: instructions, input (string or list of messages), and use_tools.
 
     - If use_tools is False: call the API without tools, return (assistant_text, None).
-    - If use_tools is True: pass the fetch_datas tool. If the response is a tool call
-      (fetch_datas), execute it, append the result to the conversation, then recall
-      call_llm with instructions from INSTRUCTION_URL (config step, no tools) and
-      return (config_json_text, raw_rows). If the response is not a tool call,
+    - If use_tools is True: pass the prepare_datama_context tool. If the response is a
+      tool call (prepare_datama_context), execute it, append the result to the
+      conversation, then recall call_llm with solution-targeted instructions (config
+      step, no tools) and return (config_json_text, raw_rows). If the response is not a tool call,
       return (assistant_text, None).
     """
     client = get_client()
@@ -95,8 +107,15 @@ def call_llm(
         return (text, None)
 
     meta_csv = None
-    if function_call_item.name == "fetch_datas":
-        meta, dataset = fetch_datas(**(json.loads(function_call_item.arguments)))
+    chosen_solution = "compare"
+    if function_call_item.name == "prepare_datama_context":
+        try:
+            tool_args = json.loads(function_call_item.arguments)
+        except json.JSONDecodeError as error:
+            raise RuntimeError(f"Invalid tool arguments JSON: {error}") from error
+        meta, dataset, chosen_solution = prepare_datama_context(**tool_args)
+    else:
+        raise RuntimeError(f"Unsupported tool call: {function_call_item.name}")
 
     meta_csv = meta_to_csv(meta, max_unique_per_col=50)
 
@@ -113,13 +132,14 @@ def call_llm(
         }
     )
     messages.extend(output_list)
-    today_str = date.today().strftime("%Y-%m-%d")
 
-    # Reload instructions from INSTRUCTION_URL and build config user message (meta + prompt)
-    config_instructions = _load_instruction_url() + f"Today is {today_str}." ""
-
+    instruction_url = (
+        INSTRUCTION_EXPLORE_URL
+        if chosen_solution == "explore"
+        else INSTRUCTION_COMPARE_URL
+    )
     config_text, _ = call_llm(
-        instructions=config_instructions,
+        instructions=_build_config_instructions(instruction_url),
         input_messages=messages,
         use_tools=False,
         model=model,
